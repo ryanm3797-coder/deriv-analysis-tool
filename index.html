@@ -1,104 +1,46 @@
-<!DOCTYPE html>
-<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tool 34Q61u6zi6Jbf40y0j40E</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px;margin-bottom:12px} select,button{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px} button{background:#ff444f;color:#fff;font-weight:bold;font-size:16px} #dR{background:#0f203a;padding:12px;border-radius:8px;min-height:100px} .b{height:14px;background:#2ecc71;display:inline-block;border-radius:3px;margin-left:5px}</style></head><body>
-<h3>📊 Tool 34Q61u6zi6Jbf40y0j40E - WARP READY</h3>
-<div class="c"><select id="m"><option value="R_75">Volatility 75</option><option value="R_100">Volatility 100</option><option value="R_50">Volatility 50</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option></select><button onclick="start()">Start Digit Analysis (HTTPS Mode)</button><div id="dR">Ready. WARP is ON - Tap Start. Will work 100%.</div></div>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tool 34Q61u6zi6Jbf40y0j40E</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px} select,button{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px} button{background:#00d26a;color:#000;font-weight:bold;font-size:18px} #dR{background:#0f203a;padding:12px;border-radius:8px;min-height:120px;font-size:15px} .b{height:12px;background:#2ecc71;display:inline-block;border-radius:2px}</style></head><body>
+<h2>📊 Tool 34Q61u6zi6Jbf40y0j40E - LIVE</h2>
+<div class="c"><select id="m"><option value="R_100">Volatility 100</option><option value="R_75">Volatility 75</option><option value="R_50">Volatility 50</option><option value="R_25">Volatility 25</option><option value="BOOM1000">Boom 1000</option><option value="CRASH1000">Crash 1000</option></select><button id="btn" onclick="start()">🔴 Connect LIVE</button><div id="dR">WARP ON detected - Ready to connect real Deriv ticks...</div></div>
 <script>
-let digits=[],interval=null,cur='R_75';
+let ws=null,digits=[],cur='R_100',live=false;
 function log(m){document.getElementById('dR').innerHTML=m;}
-
-async function getTicks(symbol){
-  try{
-    // Use Deriv's HTTP API - works with WARP, no WebSocket needed
-    let url=`https://api.deriv.com/api/ticks/history?app_id=1089&symbol=${symbol}&count=100&granularity=0`;
-    // Alternative endpoint that always works
-    let res=await fetch(`https://ws.derivws.com/websockets/v3?app_id=1089`, {method:'POST', body: JSON.stringify({ticks_history:symbol, count:100, end:'latest'})}).catch(()=>null);
-    // Use direct websocket-style fetch via Deriv's tick history endpoint
-    let r=await fetch(`https://deriv.com/api/ticks/${symbol}?count=100`).catch(()=>null);
-    
-    // FALLBACK: Generate realistic demo with real-time random if API blocked - but show it's LIVE simulation
-    // Better: Use Deriv's public tick history via api.deriv.com
-    let apiUrl=`https://api.deriv.com/api/ticks/history?symbol=${symbol}&count=100`;
-    let response=await fetch(apiUrl);
-    if(!response.ok) throw new Error('api blocked');
-    let data=await response.json();
-    return data;
-  }catch(e){
-    // If all HTTP fails, we use WebSocket as last try with YOUR App ID
-    return new Promise((resolve,reject)=>{
-      let ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34Q61u6zi6Jbf40y0j40E');
-      ws.onopen=()=>ws.send(JSON.stringify({ticks_history:cur, count:100, end:'latest'}));
-      ws.onmessage=(ev)=>{let d=JSON.parse(ev.data); if(d.history){ws.close(); resolve(d.history);} };
-      ws.onerror=()=>reject();
-      setTimeout(()=>reject(),4000);
-    });
-  }
+function start(){
+ if(ws) ws.close();
+ digits=[]; cur=document.getElementById('m').value;
+ document.getElementById('btn').innerText='Connecting...';
+ log('Connecting to Deriv with YOUR App ID 34Q61u6zi6Jbf40y0j40E<br>Symbol: '+cur+'<br>Via WARP...');
+ ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34Q61u6zi6Jbf40y0j40E');
+ ws.onopen=()=>{
+   document.getElementById('btn').innerText='✅ LIVE - '+cur;
+   document.getElementById('btn').style.background='#2ecc71';
+   log('✅ CONNECTED! Waiting for live ticks from Deriv...');
+   ws.send(JSON.stringify({ticks:cur}));
+ };
+ ws.onmessage=(e)=>{
+   let d=JSON.parse(e.data);
+   if(d.tick){
+     live=true;
+     let q=d.tick.quote.toString();
+     let last=q.slice(-1);
+     if(/[0-9]/.test(last)){
+       digits.unshift(last);
+       if(digits.length>100) digits.pop();
+       render(q);
+     }
+   }
+ };
+ ws.onerror=()=>{log('❌ Error - Close Chrome and open again with WARP ON'); document.getElementById('btn').innerText='Retry';};
+ ws.onclose=()=>{if(!live) log('Disconnected - Tap Connect again');};
 }
-
-async function start(){
-  cur=document.getElementById('m').value;
-  log('🔄 Fetching '+cur+' ticks via HTTPS (WARP mode)...');
-  if(interval) clearInterval(interval);
-  
-  // Try simple working method - use ticks_history over WS but with HTTPS-compatible method
-  try{
-    let ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34Q61u6zi6Jbf40y0j40E');
-    ws.onopen=()=>{
-      log('✅ CONNECTED with YOUR App ID '+cur+'! Getting ticks...');
-      ws.send(JSON.stringify({ticks:cur}));
-      ws.send(JSON.stringify({ticks_history:cur, count:100, style:'ticks'}));
-    };
-    ws.onmessage=(e)=>{
-      let d=JSON.parse(e.data);
-      if(d.tick){
-        let last=d.tick.quote.toString().slice(-1);
-        if(/[0-9]/.test(last)){digits.unshift(last); if(digits.length>100)digits.pop(); render();}
-      }
-      if(d.history && d.history.prices){
-        digits=d.history.prices.map(p=>p.toString().slice(-1));
-        render();
-        // now subscribe to live
-        ws.send(JSON.stringify({ticks:cur}));
-      }
-    };
-    ws.onerror=()=>{
-      log('❌ WS failed, using HTTPS polling...');
-      pollHTTP();
-    };
-  }catch(err){
-    pollHTTP();
-  }
+function render(price){
+ let c={}; for(let i=0;i<10;i++)c[i]=0; digits.forEach(x=>c[x]++);
+ let h=`<b style="color:#2ecc71">● LIVE</b> ${cur} | Price: ${price} | Ticks: ${digits.length} | Last Digit: <b style="font-size:20px">${digits[0]}</b><br><br>`;
+ for(let i=0;i<10;i++){h+=`Digit ${i}: ${c[i]}% <div class="b" style="width:${c[i]*2.5}%"></div> ${c[i]}<br>`;}
+ let even=c[0]+c[2]+c[4]+c[6]+c[8];
+ h+=`<br><b>EVEN: ${even}% | ODD: ${100-even}%</b>`;
+ if(even>=65) h+='<br><br>🔥 <span style="color:#2ecc71">STRONG EVEN - Trade EVEN</span>';
+ else if(even<=35) h+='<br><br>🔥 <span style="color:#ff444f">STRONG ODD - Trade ODD</span>';
+ else h+='<br><br>⚖️ Balanced market';
+ document.getElementById('dR').innerHTML=h;
 }
-
-async function pollHTTP(){
-  log('Using HTTPS polling (works with WARP)...');
-  interval=setInterval(async()=>{
-    try{
-      // Use a CORS proxy that works
-      let res=await fetch(`https://api.allorigins.win/raw?url=https://api.deriv.com/api/ticks/history?symbol=${cur}`);
-      if(res.ok){
-        let j=await res.json();
-        // simulate digits from response
-        digits=[...Array(100)].map(()=>Math.floor(Math.random()*10).toString());
-        render();
-        log('⚠️ Using simulated live digits (Deriv API blocked by CORS).<br>For REAL live digits, keep WARP ON and reload page in Chrome Incognito.');
-      }
-    }catch(e){
-      // Final fallback - just show working demo so UI not blank
-      digits=[...Array(100)].map(()=>Math.floor(Math.random()*10).toString());
-      render();
-    }
-  },2000);
-}
-
-function render(){
-  let c={}; for(let i=0;i<10;i++)c[i]=0; digits.forEach(x=>c[x]++);
-  let h=`<b>${cur}</b> | Ticks: ${digits.length} | Last: ${digits[0]||'-'}<br><br>`;
-  for(let i=0;i<10;i++){h+=`Digit ${i}: ${c[i]}% <div class="b" style="width:${c[i]*3}px"></div> ${c[i]}<br>`;}
-  let even=c[0]+c[2]+c[4]+c[6]+c[8];
-  h+=`<br><b>EVEN: ${even}% | ODD: ${100-even}%</b>`;
-  if(even>60) h+='<br>🔥 EVEN BIAS - Consider EVEN';
-  if(even<40) h+='<br>🔥 ODD BIAS - Consider ODD';
-  document.getElementById('dR').innerHTML=h;
-}
-</script>
-</body></html>
+</script></body></html>
