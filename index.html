@@ -1,28 +1,102 @@
 <!DOCTYPE html>
 <html>
-<head><meta name="viewport" content="width=device-width">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Deriv Analysis Tool</title>
-<style>body{font-family:Arial;background:#0f172a;color:#fff;padding:16px}.card{background:#1e293b;border-radius:16px;padding:16px;margin:12px 0}button{width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:bold}select,input{width:100%;padding:12px;border-radius:10px;border:none}</style>
+<style>
+body{background:#0a1929;color:#fff;font-family:Arial;padding:15px}
+.card{background:#162a47;padding:15px;border-radius:12px;margin-bottom:15px}
+select,input{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px}
+button{width:100%;padding:13px;background:#ff444f;color:#fff;border:none;border-radius:8px;font-weight:bold;font-size:16px}
+#digitResult,#accountResult{margin-top:12px;background:#0f203a;padding:10px;border-radius:8px;min-height:40px}
+.bar{height:10px;background:#2ecc71;display:inline-block;border-radius:3px}
+</style>
 </head>
 <body>
-<h2>📊 Deriv Analysis Tool - App ID 34Q61u6zi6Jbf4OyOj40E</h2>
+<h3>📊 Deriv Tool - ID 34Q61u6zi6Jbf40y0j40E</h3>
+
 <div class="card">
-<select id="market"><option value="R_75">Volatility 75</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option><option value="R_100">Volatility 100</option></select>
+<select id="market">
+<option value="R_75">Volatility 75 Index</option>
+<option value="R_100">Volatility 100 Index</option>
+<option value="R_50">Volatility 50 Index</option>
+<option value="1HZ75V">Volatility 75 (1s)</option>
+<option value="BOOM1000">Boom 1000</option>
+<option value="CRASH500">Crash 500</option>
+</select>
 <button onclick="startDigits()">Start Digit Analysis</button>
-<div id="digitResult"></div>
+<div id="digitResult">Click Start to begin...</div>
 </div>
+
 <div class="card">
-<input id="token" type="password" placeholder="Paste Deriv API Token">
+<input id="token" type="text" placeholder="Paste Deriv API Token (optional)">
 <button onclick="analyzeAccount()">Analyze My Account</button>
-<div id="accountResult"></div>
+<div id="accountResult">Your P/L will show here</div>
 </div>
+
 <script>
-const app_id='34Q61u6zi6Jbf4OyOj40E';
-let ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+app_id);
+const APP_ID = 71979; // Using public App ID for stability, your ID is 34Q61u6zi6Jbf40y0j40E
+let ws;
 let digits=[];
-function startDigits(){digits=[];ws.send(JSON.stringify({ticks:document.getElementById('market').value}));}
-function analyzeAccount(){ws.send(JSON.stringify({authorize:document.getElementById('token').value}));}
-ws.onmessage=(msg)=>{let data=JSON.parse(msg.data);if(data.authorize){ws.send(JSON.stringify({profit_table:1,description:1,limit:100}));}if(data.tick){let d=String(data.tick.quote).slice(-1);digits.push(d);if(digits.length>100)digits.shift();let c={};for(let i=0;i<10;i++)c[i]=0;digits.forEach(x=>c[x]++);let h=`Ticks: ${digits.length}<br>`;for(let i=0;i<10;i++)h+=`D${i}: ${c[i]}%<br>`;document.getElementById('digitResult').innerHTML=h;}if(data.profit_table){let total=0,wins=0;data.profit_table.transactions.forEach(t=>{let p=t.sell_details?parseFloat(t.sell_details.profit):0;total+=p;if(p>0)wins++;});document.getElementById('accountResult').innerHTML=`P/L: $${total.toFixed(2)}<br>Win Rate: ${(wins/data.profit_table.count*100).toFixed(1)}%`;}}
+
+function connect(){
+  ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+APP_ID);
+  ws.onopen=()=>{document.getElementById('digitResult').innerHTML='Connected! Starting...';};
+  ws.onmessage=(e)=>{
+    let data=JSON.parse(e.data);
+    if(data.tick){
+      let quote=data.tick.quote.toString();
+      let last=quote[quote.length-1];
+      if(!isNaN(last)){
+        digits.push(last);
+        if(digits.length>100)digits.shift();
+        showDigits();
+      }
+    }
+    if(data.profit_table){
+      let total=0,wins=0; 
+      data.profit_table.transactions.forEach(t=>{
+        let p=t.sell_details?parseFloat(t.sell_details.profit):0;
+        total+=p; if(p>0)wins++;
+      });
+      let winRate=(wins/data.profit_table.count*100).toFixed(1);
+      document.getElementById('accountResult').innerHTML=`<b>P/L: $${total.toFixed(2)}<br>Win Rate: ${winRate}% (${wins}/${data.profit_table.count})</b>`;
+    }
+    if(data.error){
+      document.getElementById('digitResult').innerHTML='Error: '+data.error.message;
+    }
+  };
+}
+connect();
+
+function startDigits(){
+  digits=[];
+  let sym=document.getElementById('market').value;
+  if(ws.readyState!==1)connect();
+  setTimeout(()=>{
+    ws.send(JSON.stringify({ticks:sym}));
+    document.getElementById('digitResult').innerHTML='Subscribing to '+sym+'... waiting for ticks';
+  },500);
+}
+
+function showDigits(){
+  let c={}; for(let i=0;i<10;i++)c[i]=0;
+  digits.forEach(d=>c[d]++);
+  let html=`Ticks: ${digits.length}/100 | Last: ${digits[digits.length-1]}<br><br>`;
+  for(let i=0;i<10;i++){
+    html+=`Digit ${i}: ${c[i]}% <div class="bar" style="width:${c[i]*3}px"></div> ${c[i]}<br>`;
+  }
+  let even=c[0]+c[2]+c[4]+c[6]+c[8];
+  html+=`<br><b>Even: ${even}% | Odd: ${100-even}%</b>`;
+  document.getElementById('digitResult').innerHTML=html;
+}
+
+function analyzeAccount(){
+  let tok=document.getElementById('token').value.trim();
+  if(!tok){alert('Paste token from app.deriv.com > Settings > API Token');return;}
+  ws.send(JSON.stringify({authorize:tok}));
+  setTimeout(()=>{ws.send(JSON.stringify({profit_table:1,description:1,limit:100,sort:'DESC'}));},1000);
+}
 </script>
 </body>
 </html>
