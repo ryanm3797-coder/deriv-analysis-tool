@@ -1,46 +1,38 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tool 34Q61u6zi6Jbf40y0j40E</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px} select,button{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px} button{background:#00d26a;color:#000;font-weight:bold;font-size:18px} #dR{background:#0f203a;padding:12px;border-radius:8px;min-height:120px;font-size:15px} .b{height:12px;background:#2ecc71;display:inline-block;border-radius:2px}</style></head><body>
-<h2>📊 Tool 34Q61u6zi6Jbf40y0j40E - LIVE</h2>
-<div class="c"><select id="m"><option value="R_100">Volatility 100</option><option value="R_75">Volatility 75</option><option value="R_50">Volatility 50</option><option value="R_25">Volatility 25</option><option value="BOOM1000">Boom 1000</option><option value="CRASH1000">Crash 1000</option></select><button id="btn" onclick="start()">🔴 Connect LIVE</button><div id="dR">WARP ON detected - Ready to connect real Deriv ticks...</div></div>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Tool 34Q61u6zi6Jbf40y0j40E</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px} select,button{width:100%;padding:12px;border-radius:8px;border:none} button{background:#2ecc71;color:#000;font-weight:bold;font-size:18px;margin-top:8px} #dR{background:#0f203a;padding:12px;border-radius:8px;margin-top:8px;min-height:120px}</style></head><body>
+<h3>Tool 34Q61u6zi6Jbf40y0j40E - LIVE FIXED</h3>
+<div class="c"><select id="m"><option value="R_100">Volatility 100</option><option value="R_75">Volatility 75</option><option value="R_50">Volatility 50</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option></select><button id="btn" onclick="start()">🟢 TAP TO CONNECT LIVE</button><div id="dR">Ready. WARP is ON - Tap button.<br>App: 34Q61u6zi6Jbf40y0j40E (branding)<br>Connection: app_id 1089 (Deriv live)</div></div>
 <script>
-let ws=null,digits=[],cur='R_100',live=false;
+let ws,digits=[],cur='R_100';
 function log(m){document.getElementById('dR').innerHTML=m;}
 function start(){
- if(ws) ws.close();
- digits=[]; cur=document.getElementById('m').value;
- document.getElementById('btn').innerText='Connecting...';
- log('Connecting to Deriv with YOUR App ID 34Q61u6zi6Jbf40y0j40E<br>Symbol: '+cur+'<br>Via WARP...');
- ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34Q61u6zi6Jbf40y0j40E');
- ws.onopen=()=>{
-   document.getElementById('btn').innerText='✅ LIVE - '+cur;
-   document.getElementById('btn').style.background='#2ecc71';
-   log('✅ CONNECTED! Waiting for live ticks from Deriv...');
-   ws.send(JSON.stringify({ticks:cur}));
- };
- ws.onmessage=(e)=>{
+ if(ws) ws.close(); digits=[]; cur=document.getElementById('m').value;
+ document.getElementById('btn').innerText='Connecting to Deriv...';
+ // Use PUBLIC 1089 for WebSocket - YOUR ID for branding
+ // ws.derivws.com blocked on Airtel? Try ws.binaryws.com which works in Kenya
+ let urls=['wss://ws.binaryws.com/websockets/v3?app_id=1089','wss://ws.derivws.com/websockets/v3?app_id=1089'];
+ let idx=0;
+ function tryConnect(){
+  log('Trying server '+(idx+1)+'... '+urls[idx]);
+  ws=new WebSocket(urls[idx]);
+  ws.onopen=()=>{document.getElementById('btn').innerText='✅ LIVE '+cur; log('✅ CONNECTED to '+urls[idx]+'<br>Subscribing to '+cur+'...'); ws.send(JSON.stringify({ticks:cur}));};
+  ws.onmessage=(e)=>{
    let d=JSON.parse(e.data);
    if(d.tick){
-     live=true;
-     let q=d.tick.quote.toString();
-     let last=q.slice(-1);
-     if(/[0-9]/.test(last)){
-       digits.unshift(last);
-       if(digits.length>100) digits.pop();
-       render(q);
-     }
+    let last=d.tick.quote.toString().slice(-1);
+    if(/[0-9]/.test(last)){digits.unshift(last); if(digits.length>100)digits.pop(); render(d.tick.quote);}
    }
- };
- ws.onerror=()=>{log('❌ Error - Close Chrome and open again with WARP ON'); document.getElementById('btn').innerText='Retry';};
- ws.onclose=()=>{if(!live) log('Disconnected - Tap Connect again');};
+  };
+  ws.onerror=()=>{idx++; if(idx<urls.length) setTimeout(tryConnect,1000); else log('Both WS blocked.<br>TURN OFF WiFi, use only Airtel data + WARP ON.<br>Your WiFi "posaByq34" blocks Deriv.');};
+  ws.onclose=()=>{if(digits.length==0){idx++; if(idx<urls.length) tryConnect();}};
+ }
+ tryConnect();
 }
 function render(price){
  let c={}; for(let i=0;i<10;i++)c[i]=0; digits.forEach(x=>c[x]++);
- let h=`<b style="color:#2ecc71">● LIVE</b> ${cur} | Price: ${price} | Ticks: ${digits.length} | Last Digit: <b style="font-size:20px">${digits[0]}</b><br><br>`;
- for(let i=0;i<10;i++){h+=`Digit ${i}: ${c[i]}% <div class="b" style="width:${c[i]*2.5}%"></div> ${c[i]}<br>`;}
+ let h=`<b style="color:#2ecc71">● LIVE PRICE: ${price}</b><br>Symbol: ${cur} | Ticks: ${digits.length} | Last Digit: <b style="font-size:22px">${digits[0]}</b><br><br>`;
+ for(let i=0;i<10;i++) h+=`Digit ${i}: ${c[i]}% ${'█'.repeat(c[i])}<br>`;
  let even=c[0]+c[2]+c[4]+c[6]+c[8];
- h+=`<br><b>EVEN: ${even}% | ODD: ${100-even}%</b>`;
- if(even>=65) h+='<br><br>🔥 <span style="color:#2ecc71">STRONG EVEN - Trade EVEN</span>';
- else if(even<=35) h+='<br><br>🔥 <span style="color:#ff444f">STRONG ODD - Trade ODD</span>';
- else h+='<br><br>⚖️ Balanced market';
+ h+=`<br><b>EVEN ${even}% | ODD ${100-even}%</b>`;
  document.getElementById('dR').innerHTML=h;
 }
 </script></body></html>
