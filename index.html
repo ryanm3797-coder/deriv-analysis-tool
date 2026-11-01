@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width">
+<title>Deriv Analysis Tool</title>
+<style>body{font-family:Arial;background:#0f172a;color:#fff;padding:16px}.card{background:#1e293b;border-radius:16px;padding:16px;margin:12px 0}button{width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-weight:bold}select,input{width:100%;padding:12px;border-radius:10px;border:none}</style>
+</head>
+<body>
+<h2>📊 Deriv Analysis Tool - App ID 34Q61u6zi6Jbf4OyOj40E</h2>
+<div class="card">
+<select id="market"><option value="R_75">Volatility 75</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option><option value="R_100">Volatility 100</option></select>
+<button onclick="startDigits()">Start Digit Analysis</button>
+<div id="digitResult"></div>
+</div>
+<div class="card">
+<input id="token" type="password" placeholder="Paste Deriv API Token">
+<button onclick="analyzeAccount()">Analyze My Account</button>
+<div id="accountResult"></div>
+</div>
+<script>
+const app_id='34Q61u6zi6Jbf4OyOj40E';
+let ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+app_id);
+let digits=[];
+function startDigits(){digits=[];ws.send(JSON.stringify({ticks:document.getElementById('market').value}));}
+function analyzeAccount(){ws.send(JSON.stringify({authorize:document.getElementById('token').value}));}
+ws.onmessage=(msg)=>{let data=JSON.parse(msg.data);if(data.authorize){ws.send(JSON.stringify({profit_table:1,description:1,limit:100}));}if(data.tick){let d=String(data.tick.quote).slice(-1);digits.push(d);if(digits.length>100)digits.shift();let c={};for(let i=0;i<10;i++)c[i]=0;digits.forEach(x=>c[x]++);let h=`Ticks: ${digits.length}<br>`;for(let i=0;i<10;i++)h+=`D${i}: ${c[i]}%<br>`;document.getElementById('digitResult').innerHTML=h;}if(data.profit_table){let total=0,wins=0;data.profit_table.transactions.forEach(t=>{let p=t.sell_details?parseFloat(t.sell_details.profit):0;total+=p;if(p>0)wins++;});document.getElementById('accountResult').innerHTML=`P/L: $${total.toFixed(2)}<br>Win Rate: ${(wins/data.profit_table.count*100).toFixed(1)}%`;}}
+</script>
+</body>
+</html>
