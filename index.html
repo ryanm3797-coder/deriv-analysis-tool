@@ -1,43 +1,20 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Deriv Tool</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px;margin-bottom:12px} select,input,button{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px;box-sizing:border-box} button{background:#ff444f;color:#fff;font-weight:bold;font-size:16px} #dR,#aR{background:#0f203a;padding:10px;border-radius:8px;min-height:50px;word-break:break-all} .b{height:12px;background:#2ecc71;display:inline-block;border-radius:3px}</style></head><body><h3>📊 Tool ID 34Q61u6zi6Jbf40y0j40E</h3><div class="c"><select id="m"><option value="R_75">Volatility 75 Index</option><option value="R_100">Volatility 100</option><option value="R_50">Volatility 50</option><option value="1HZ75V">Vol 75 (1s)</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option></select><button onclick="go()">Start Digit Analysis</button><div id="dR">Ready. Tap Start...</div></div><div class="c"><input id="tok" placeholder="Deriv API Token (from app.deriv.com > API Token)"><button onclick="acc()">Analyze My Account</button><div id="aR">P/L here</div></div><script>
-let ws=null,digits=[],curSym='';
-function log(m){document.getElementById('dR').innerHTML=m; console.log(m);}
+
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Deriv Tool</title><style>body{background:#0a1929;color:#fff;font-family:Arial;padding:12px} .c{background:#162a47;padding:14px;border-radius:12px;margin-bottom:12px} select,input,button{width:100%;padding:12px;border-radius:8px;border:none;margin-bottom:8px} button{background:#ff444f;color:#fff;font-weight:bold} #dR,#aR{background:#0f203a;padding:10px;border-radius:8px;min-height:50px} .b{height:12px;background:#2ecc71;display:inline-block}</style></head><body><h3>📊 Tool 34Q61u6zi6Jbf40y0j40E</h3><div class="c"><select id="m"><option value="R_75">Volatility 75</option><option value="R_100">Vol 100</option><option value="R_50">Vol 50</option><option value="BOOM1000">Boom 1000</option><option value="CRASH500">Crash 500</option></select><button onclick="go()">Start Digit Analysis</button><div id="dR">Ready...</div></div><div class="c"><input id="tok" placeholder="API Token"><button onclick="acc()">Analyze Account</button><div id="aR">P/L</div></div><script>
+let ws,digits=[],servers=['wss://ws.derivws.com/websockets/v3?app_id=1089','wss://ws.binaryws.com/websockets/v3?app_id=1089','wss://ws.deriv.com/websockets/v3?app_id=1089'],si=0;
+function log(m){document.getElementById('dR').innerHTML=m;}
 function connect(cb){
- log('Connecting to Deriv...');
- ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
- ws.onopen=()=>{log('✅ Connected! Waiting...'); if(cb)cb();};
- ws.onerror=()=>{log('❌ Connection error. Check internet');};
+ if(si>=servers.length){log('❌ All servers blocked on this network.<br><br>TRY: 1) Switch from WiFi to Mobile Data or vice versa<br>2) Turn on VPN (1.1.1.1 app)<br>3) Try Chrome Incognito'); return;}
+ let url=servers[si]; log('Trying server '+(si+1)+'/3...<br>'+url);
+ ws=new WebSocket(url);
+ ws.onopen=()=>{log('✅ Connected to server '+(si+1)+'! Subscribing...'); if(cb)cb();};
+ ws.onerror=()=>{si++; setTimeout(()=>connect(cb),1000); log('Server '+(si)+' failed, trying next...');};
  ws.onmessage=(e)=>{
   let d=JSON.parse(e.data);
-  if(d.error){log('Deriv Error: '+d.error.message); return;}
-  if(d.tick){
-    let q=d.tick.quote.toString(); let last=q.slice(-1);
-    if(/[0-9]/.test(last)){digits.push(last); if(digits.length>100)digits.shift(); render();}
-  }
-  if(d.profit_table){
-   let t=0,w=0; d.profit_table.transactions.forEach(x=>{let p=x.sell_details?+x.sell_details.profit:0; t+=p; if(p>0)w++;});
-   let r=(w/d.profit_table.count*100).toFixed(1);
-   document.getElementById('aR').innerHTML=`<b>Total P/L: $${t.toFixed(2)}<br>Win: ${r}% (${w}/${d.profit_table.count})<br>Balance use: check app.deriv.com</b>`;
-  }
+  if(d.tick){let q=d.tick.quote.toString(); let last=q.slice(-1); if(/[0-9]/.test(last)){digits.push(last); if(digits.length>100)digits.shift(); render();}}
+  if(d.profit_table){let t=0,w=0; d.profit_table.transactions.forEach(x=>{let p=x.sell_details?+x.sell_details.profit:0; t+=p; if(p>0)w++;}); let r=(w/d.profit_table.count*100).toFixed(1); document.getElementById('aR').innerHTML=`P/L: $${t.toFixed(2)}<br>Win: ${r}%`;}
  };
 }
-function go(){
- digits=[]; curSym=document.getElementById('m').value;
- if(!ws || ws.readyState!=1){connect(()=>{ws.send(JSON.stringify({ticks:curSym})); log('📡 Subscribed to '+curSym+' - receiving ticks...');});}
- else{ws.send(JSON.stringify({ticks:curSym})); log('📡 Subscribed to '+curSym+' - receiving ticks...');}
-}
-function render(){
- let c={}; for(let i=0;i<10;i++)c[i]=0; digits.forEach(x=>c[x]++);
- let h=`Ticks: ${digits.length} | Last: ${digits[digits.length-1]||'-'} | Market: ${curSym}<br><br>`;
- for(let i=0;i<10;i++){h+=` ${i}: ${c[i]}% <div class="b" style="width:${c[i]*2.5}%"></div> ${c[i]}<br>`;}
- let even=c[0]+c[2]+c[4]+c[6]+c[8]; h+=`<br><b>EVEN: ${even}% | ODD: ${100-even}%</b>`;
- if(even>60)h+='<br>🔥 EVEN bias!'; if(even<40)h+='<br>🔥 ODD bias!';
- document.getElementById('dR').innerHTML=h;
-}
-function acc(){
- let t=document.getElementById('tok').value.trim(); if(!t){alert('Get token: app.deriv.com > Settings > API Token > Create'); return;}
- if(!ws || ws.readyState!=1){connect(()=>{ws.send(JSON.stringify({authorize:t})); setTimeout(()=>ws.send(JSON.stringify({profit_table:1,description:1,limit:50,sort:'DESC'})),800);});}
- else{ws.send(JSON.stringify({authorize:t})); setTimeout(()=>ws.send(JSON.stringify({profit_table:1,description:1,limit:50,sort:'DESC'})),800);}
- document.getElementById('aR').innerHTML='Authorizing...';
-}
-connect();
+function go(){digits=[]; let s=document.getElementById('m').value; si=0; connect(()=>{ws.send(JSON.stringify({ticks:s}));});}
+function render(){let c={}; for(let i=0;i<10;i++)c[i]=0; digits.forEach(x=>c[x]++); let h=`Ticks: ${digits.length} Last: ${digits[digits.length-1]||''}<br><br>`; for(let i=0;i<10;i++)h+=`${i}: ${c[i]}% <div class="b" style="width:${c[i]*2}%"></div><br>`; let e=c[0]+c[2]+c[4]+c[6]+c[8]; h+=`<br>EVEN ${e}% ODD ${100-e}%`; document.getElementById('dR').innerHTML=h;}
+function acc(){let t=document.getElementById('tok').value.trim(); if(!t){alert('Get token at app.deriv.com > API Token'); return;} si=0; connect(()=>{ws.send(JSON.stringify({authorize:t})); setTimeout(()=>ws.send(JSON.stringify({profit_table:1,limit:50})),800);});}
 </script></body></html>
